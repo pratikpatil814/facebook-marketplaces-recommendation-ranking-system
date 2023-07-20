@@ -14,7 +14,7 @@ if __name__ == '__main__':
     path = r'C:\Users\prati\Documents\facebook-marketplaces-recommendation-ranking-system\data\training_data\images_fb\images'
     dirs = os.listdir(path)
     final_size = 512
-    for n, item in enumerate(dirs, 1):
+    for n, item in enumerate(dirs, 0):
         im = Image.open(path +r'/' + item)
         new_im = resize_image(final_size, im)
-        new_im.save(fr'C:\Users\prati\Documents\facebook-marketplaces-recommendation-ranking-system\data\training_data\new_images_fb\{n}_resized.jpg')
+        new_im.save(fr'C:\Users\prati\Documents\facebook-marketplaces-recommendation-ranking-system\data\training_data\new_images_fb\{n}.jpg')
