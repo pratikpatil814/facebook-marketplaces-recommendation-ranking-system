@@ -267,14 +267,82 @@ torch.save(model.state_dict(), save_path)
 The image_processor.py script preprocesses single images for machine learning model input. (batch_size, n_channels, height, width) photos were utilised to train the model. When inferring with a single image, the input shape must be (n_channels, height, width).This script seamlessly transforms the input image using the same preprocessing procedures as training. It formats the image for the model's input. The script resizes, normalises, and transforms images using PIL and torchvision.transforms.To utilise the script, enter the image path in the image_path variable. The script preprocesses the image and adds a batch dimension to make a batch of size 1. Your machine learning model can immediately infer from this preprocessed image.Image_processor.py lets you easily integrate single-image inputs into your model pipeline without preprocessing, assuring accurate and efficient predictions.
 
 ``` python
-model = facbook_RN_50()
-weights_path = './weights_folder/epoch_1.pt'
-model.load_state_dict(torch.load(weights_path))
-model = torch.nn.Sequential(*list(model.children())[:-2])
+from torchvision import transforms
+import pandas as pd
+import os
+from PIL import Image
+from facebook_resnet50 import facbook_RN_50
+from torch.nn import Linear
+import torch
+from torchvision import models
+import json 
+from tqdm import tqdm
+def image_processor(img):
+    transform = transforms.Compose([
+                transforms.Resize(256),
+                transforms.CenterCrop(256),
+                transforms.RandomHorizontalFlip(p=0.3),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                std=[0.229, 0.224, 0.225]) 
+            ])
+    processed_image = transform(img)
+    processed_image = processed_image.unsqueeze(0)
+    return processed_image
+def call_model():
+    path = './final_model/model_evaluation/image_model.pt '
+    model    = models.resnet50(  weights='IMAGENET1K_V2')
+    model.fc = Linear(model.fc.in_features, 13)
+    model.load_state_dict(torch.load(os.path.join( path)), strict=False)
+    model.eval()
+    return model
 
-save_path = 'final_model/model_evaluation/image_model.pt'
-os.makedirs(os.path.dirname(save_path), exist_ok=True)
-torch.save(model.state_dict(), save_path)
+if __name__ == "__main__":
+    csv_path = './data/training_data/training_data.csv'
+    path = './data/training_data/new_images_fb'
+    model = facbook_RN_50()
 
+    df =  pd.read_csv(csv_path)
+    lables = df['index'].to_list()
+    image_dict= {}
+    model =call_model()
+    print('pratik')
+
+    for i,j in tqdm(enumerate(lables)):
+        im_path = os.path.join(path,str(j))
+        img = Image.open(im_path + '.jpg')
+        img = image_processor(img)
+        emb = model(img)
+        image_dict = {i : emb.tolist()[0]}
+
+    json_data = json.dumps(image_dict)    
+    with open('image_embeddings.json', 'w') as f:
+        f.write(json_data)
 ```
 
+In the previous phase, we started by saving the image_id's and corresponding embeddings into a pickle file. Afterward, we loaded this pickle file into memory as a variable. Next, we separated the image_id's and embeddings from the loaded variable, creating two distinct arrays. However, we encountered an issue with the arrays' shapes not being consistent. To address this problem, we introduced additional code to ensure that the arrays were made homogeneous, having consistent shapes throughout. By doing so, we successfully resolved the shape-related discrepancies in the data, enabling smoother processing and analysis.
+
+``` python
+import faiss               
+import json
+import numpy as np
+class faiss_class():
+    def get_dic_to_numpy_array(self):
+        with open('image_embeddings.json') as json_file:
+            dic = json.load(json_file)
+        matrix = np.empty([0,13])
+        for key in dic.keys():
+            matrix = np.vstack([matrix,np.array(dic[key], dtype=np.float32)])
+        return matrix
+
+    def get_FAISS_index(self):
+        index = faiss.IndexFlatL2(13) 
+        index.add(self.get_dic_to_numpy_array())   
+        return index
+
+if __name__ == '__main__':
+    fa = faiss_class()
+    index = fa.get_FAISS_index()
+    faiss.write_index(index,'FAISS.pkl')
+
+```

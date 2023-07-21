@@ -11,7 +11,7 @@ from facebook_resnet50 import facbook_RN_50
 from torch.utils.tensorboard import SummaryWriter
 
 
-def train_model(model,data_loaders,criterion,optimizer,epochs=2):
+def train_model(model,data_loaders,criterion,optimizer,epochs=10):
         # Create a folder for the model evaluation
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     model_eval_folder = f'model_evaluation_loaded_weight/{timestamp}'
